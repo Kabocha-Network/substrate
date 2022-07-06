@@ -75,6 +75,10 @@ use sp_runtime::{
 	RuntimeDebug,
 };
 use sp_std::{borrow::Borrow, cmp::Ordering, marker::PhantomData, prelude::*};
+
+/// For Relay Chain Block Number
+use cumulus_pallet_parachain_system::RelaychainBlockNumberProvider;
+
 pub use weights::WeightInfo;
 
 /// Just a simple index for naming period tasks.
@@ -491,6 +495,32 @@ pub mod pallet {
 		pub fn schedule_after(
 			origin: OriginFor<T>,
 			after: T::BlockNumber,
+			maybe_periodic: Option<schedule::Period<T::BlockNumber>>,
+			priority: schedule::Priority,
+			call: Box<CallOrHashOf<T>>,
+		) -> DispatchResult {
+			T::ScheduleOrigin::ensure_origin(origin.clone())?;
+			let origin = <T as Config>::Origin::from(origin);
+			Self::do_schedule(
+				DispatchTime::After(after),
+				maybe_periodic,
+				priority,
+				origin.caller().clone(),
+				*call,
+			)?;
+			Ok(())
+		}
+
+
+		/// Anonymously schedule a task after a delay.
+		///
+		/// # <weight>
+		/// Same as [`schedule`].
+		/// # </weight>
+		#[pallet::weight(<T as Config>::WeightInfo::schedule(T::MaxScheduledPerBlock::get()))]
+		pub fn schedule_relay_bn_after(
+			origin: OriginFor<T>,
+			after: T::RelaychainBlockNumberProvider,
 			maybe_periodic: Option<schedule::Period<T::BlockNumber>>,
 			priority: schedule::Priority,
 			call: Box<CallOrHashOf<T>>,
